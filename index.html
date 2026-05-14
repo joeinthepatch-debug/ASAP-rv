@@ -375,12 +375,12 @@ input.gm-err-autocomplete { display: block !important; background: var(–surfac
     <div class="form-group"><label class="form-label">RV Info</label><input class="form-input" id="f_rv" placeholder="Year / Make / Model" /></div>
     <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="f_notes" placeholder="Notes"></textarea></div>
     <div class="form-group">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-        <input type="checkbox" id="f_queue" style="width:18px;height:18px;accent-color:var(--purple);" />
-        <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-dim);">Add to queue (no date yet)</span>
-      </label>
+      <button type="button" id="queueToggleBtn" onclick="toggleQueueMode()" style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius);padding:12px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-dim);cursor:pointer;transition:all .15s;text-align:center;">
+        📋 Add to Queue Instead
+      </button>
+      <input type="checkbox" id="f_queue" style="display:none;" />
     </div>
-    <button class="btn-primary" onclick="saveJob()">Save Job</button>
+    <button class="btn-primary" id="saveJobBtn" onclick="saveJob()">Save Job</button>
     <button class="btn-danger" style="margin-top:8px;" onclick="closeModal('newJobModal')">Cancel</button>
   </div>
 </div>
@@ -836,9 +836,57 @@ document.addEventListener('click', e => {
 });
 
 // ── Save job ───────────────────────────────────────────────
+function toggleQueueMode() {
+  const cb = document.getElementById('f_queue');
+  const btn = document.getElementById('queueToggleBtn');
+  const saveBtn = document.getElementById('saveJobBtn');
+  cb.checked = !cb.checked;
+  if (cb.checked) {
+    btn.style.background = 'rgba(229,57,53,.15)';
+    btn.style.borderColor = '#e53935';
+    btn.style.color = '#e53935';
+    btn.textContent = '✓ Will Save to Queue';
+    saveBtn.textContent = 'Add to Queue';
+    saveBtn.style.background = '#e53935';
+  } else {
+    btn.style.background = 'var(--surface2)';
+    btn.style.borderColor = 'var(--border)';
+    btn.style.color = 'var(--text-dim)';
+    btn.textContent = '📋 Add to Queue Instead';
+    saveBtn.textContent = 'Save Job';
+    saveBtn.style.background = '#2979ff';
+  }
+}
+
+function resetQueueToggle() {
+  const cb = document.getElementById('f_queue');
+  const btn = document.getElementById('queueToggleBtn');
+  const saveBtn = document.getElementById('saveJobBtn');
+  cb.checked = false;
+  btn.style.background = 'var(--surface2)';
+  btn.style.borderColor = 'var(--border)';
+  btn.style.color = 'var(--text-dim)';
+  btn.textContent = '📋 Add to Queue Instead';
+  saveBtn.textContent = 'Save Job';
+  saveBtn.style.background = '#2979ff';
+}
+
+function activateQueueToggle() {
+  const cb = document.getElementById('f_queue');
+  const btn = document.getElementById('queueToggleBtn');
+  const saveBtn = document.getElementById('saveJobBtn');
+  cb.checked = true;
+  btn.style.background = 'rgba(229,57,53,.15)';
+  btn.style.borderColor = '#e53935';
+  btn.style.color = '#e53935';
+  btn.textContent = '✓ Will Save to Queue';
+  saveBtn.textContent = 'Add to Queue';
+  saveBtn.style.background = '#e53935';
+}
+
 function openQueueJobModal() {
   openNewJobModal();
-  document.getElementById('f_queue').checked = true;
+  activateQueueToggle();
   document.getElementById('newJobTitle').textContent = 'Add to Queue';
 }
 
@@ -853,6 +901,7 @@ function openNewJobModal(prefillDate) {
   document.getElementById('f_queue').checked = false;
   delete document.getElementById('newJobModal').dataset.replaceId;
   document.getElementById('newJobModal').classList.add('open');
+  resetQueueToggle();
   setTimeout(() => attachPlacesWhenReady('f_location'), 300);
 }
 
@@ -863,7 +912,7 @@ function saveJob() {
   const date = document.getElementById('f_date').value;
   const time = document.getElementById('f_time').value;
   const queueChecked = document.getElementById('f_queue').checked;
-  const isQueued = queueChecked && !date;
+  const isQueued = queueChecked;
   const replaceId = document.getElementById('newJobModal').dataset.replaceId;
   const wasEdit = !!replaceId;
 
@@ -952,6 +1001,7 @@ function editJob(id) {
     document.getElementById('f_rv').value = j.rv || '';
     document.getElementById('f_notes').value = j.notes || '';
     document.getElementById('f_queue').checked = j.status === 'queued';
+    if (j.status === 'queued') activateQueueToggle();
     document.getElementById('customerSearch').value = j.name;
   }, 250);
 }
