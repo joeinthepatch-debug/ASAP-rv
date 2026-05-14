@@ -865,6 +865,15 @@ function saveJob() {
   const queueChecked = document.getElementById('f_queue').checked;
   const isQueued = queueChecked && !date;
   const replaceId = document.getElementById('newJobModal').dataset.replaceId;
+  const wasEdit = !!replaceId;
+
+  // When editing, preserve the original job's status unless queue checkbox changed
+  let status = isQueued ? 'queued' : 'scheduled';
+  if (replaceId) {
+    const orig = jobs.find(x => x.id === replaceId);
+    if (orig && !queueChecked && orig.status !== 'queued') status = orig.status;
+  }
+
   if (replaceId) { jobs=jobs.filter(x => x.id!==replaceId); delete document.getElementById('newJobModal').dataset.replaceId; }
   const job = {
     id:genId(), name, service,
@@ -874,14 +883,14 @@ function saveJob() {
     revenue:document.getElementById('f_revenue').value,
     rv:document.getElementById('f_rv').value.trim(),
     notes:document.getElementById('f_notes').value.trim(),
-    status:isQueued?'queued':'scheduled'
+    status
   };
   jobs.push(job);
   saveStorage();
   closeModal('newJobModal');
-  if (!isQueued) selectedDate=date;
+  if (!isQueued && date) selectedDate=date;
   buildWeekStrip(); renderJobs(); renderStats(); renderQueue(); renderCustomerList();
-  showToast(isQueued?'Added to queue!':'Job scheduled!');
+  showToast(isQueued ? 'Added to queue!' : wasEdit ? 'Job updated!' : 'Job scheduled!');
 }
 
 // ── Job detail ─────────────────────────────────────────────
@@ -924,12 +933,36 @@ function openDetail(id) {
   }, 50);
 }
 
+function editJob(id) {
+  const j = jobs.find(x => x.id === id);
+  if (!j) return;
+  closeModal('detailModal');
+  setTimeout(() => {
+    openNewJobModal();
+    document.getElementById('newJobModal').dataset.replaceId = id; // set AFTER openNewJobModal clears it
+    document.getElementById('newJobTitle').textContent = 'Edit Job';
+    document.getElementById('f_name').value = j.name;
+    document.getElementById('f_phone').value = j.phone || '';
+    document.getElementById('f_service').value = j.service;
+    document.getElementById('f_location').value = j.location || '';
+    document.getElementById('f_date').value = j.date || selectedDate;
+    document.getElementById('f_time').value = j.time || '08:00';
+    document.getElementById('f_duration').value = j.duration || '2hr';
+    document.getElementById('f_revenue').value = j.revenue || '';
+    document.getElementById('f_rv').value = j.rv || '';
+    document.getElementById('f_notes').value = j.notes || '';
+    document.getElementById('f_queue').checked = j.status === 'queued';
+    document.getElementById('customerSearch').value = j.name;
+  }, 250);
+}
+
 function scheduleFromQueue(id) {
   const j = jobs.find(x => x.id===id);
   if (!j) return;
   closeModal('detailModal');
   setTimeout(() => {
     openNewJobModal();
+    document.getElementById('newJobModal').dataset.replaceId = id; // set AFTER openNewJobModal clears it
     document.getElementById('newJobTitle').textContent = 'Schedule Job';
     document.getElementById('f_name').value = j.name;
     document.getElementById('f_phone').value = j.phone||'';
@@ -939,7 +972,6 @@ function scheduleFromQueue(id) {
     document.getElementById('f_duration').value = j.duration||'2hr';
     document.getElementById('f_revenue').value = j.revenue||'';
     document.getElementById('customerSearch').value = j.name;
-    document.getElementById('newJobModal').dataset.replaceId = id;
   }, 250);
 }
 
@@ -971,7 +1003,7 @@ function deleteJob(id) {
 
 // ── Map view ───────────────────────────────────────────────
 function renderMapView() {
-  const dayJobs = jobs.filter(j => j.date===selectedDate && j.status!=='cancelled' && j.status!=='queued').sort((a,b)=>a.time.localeCompare(b.time));
+  const dayJobs = jobs.filter(j => j.date===selectedDate && j.status!=='cancelled' && j.status!=='queued' && j.location).sort((a,b)=>a.time.localeCompare(b.time));
   const today = todayStr();
   const d = new Date(selectedDate+'T12:00:00');
   const label = selectedDate===today?"Today's Route":d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' Route';
